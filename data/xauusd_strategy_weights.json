@@ -1,0 +1,10 @@
+{
+  "smc": 0.25,
+  "support_resistance": 0.2,
+  "price_action": 0.15,
+  "bollinger": 0.12,
+  "fvg": 0.1,
+  "patterns": 0.08,
+  "volume": 0.05,
+  "candlesticks": 0.05
+}
