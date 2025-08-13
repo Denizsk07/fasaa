@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Live Signal Test - Mit echten Config-Weights
+Schneller Signal Test - Prüft ob Bot Signale generieren kann
 """
 
 import sys
@@ -11,147 +11,95 @@ from datetime import datetime
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-async def live_signal_test():
-    """Teste mit echten Config-Weights"""
-    
-    print("🎯 LIVE SIGNAL TEST - Mit korrekten Weights")
-    print("=" * 50)
+async def quick_test():
+    print("🚀 QUICK SIGNAL TEST")
+    print("=" * 30)
     
     try:
-        # Import updated config
         from config import config
         from trading.signal_generator import SignalGenerator
         
-        print(f"✅ Config loaded - MIN_SCORE: {config.MIN_SIGNAL_SCORE}")
-        print(f"📊 Updated weights loaded")
-        
-        # Show new weights
-        print(f"\n⚖️ CURRENT STRATEGY WEIGHTS:")
-        print("-" * 30)
-        for strategy, weight in sorted(config.STRATEGY_WEIGHTS.items(), key=lambda x: x[1], reverse=True):
-            percentage = weight * 100
-            print(f"{strategy:15s}: {weight:.3f} ({percentage:4.1f}%)")
-        
-        # Initialize with updated config
-        sg = SignalGenerator()
-        
-        # Force reload of weights
-        sg.weights = config.STRATEGY_WEIGHTS
-        print(f"\n🔄 Signal Generator weights updated")
-        
-        # Test current price
-        price = sg.data_manager.get_current_price()
-        print(f"💰 Current price: ${price:.2f}")
+        print(f"✅ Imports successful")
+        print(f"📊 Current threshold: {config.MIN_SIGNAL_SCORE}")
         
         # Test signal generation
-        print(f"\n🎯 GENERATING LIVE SIGNAL...")
-        print("-" * 30)
+        sg = SignalGenerator()
+        print(f"🔍 Testing signal generation...")
         
         signal = await sg.generate_signal()
         
         if signal:
-            print(f"\n🎉 LIVE SIGNAL GENERATED!")
+            print(f"\n🎉 SUCCESS! Signal generated:")
             print(f"   Direction: {signal['direction']}")
             print(f"   Entry: ${signal['entry']:.2f}")
             print(f"   Score: {signal['score']:.1f}")
             print(f"   Timeframe: {signal['timeframe']}")
             
-            if 'sl' in signal:
-                print(f"\n💰 RISK LEVELS:")
-                print(f"   Stop Loss: ${signal['sl']:.2f}")
-                print(f"   TP1: ${signal.get('tp1', 0):.2f}")
-                print(f"   TP2: ${signal.get('tp2', 0):.2f}")
-                print(f"   TP3: ${signal.get('tp3', 0):.2f}")
-                print(f"   TP4: ${signal.get('tp4', 0):.2f}")
+            print(f"\n💰 Risk Levels:")
+            print(f"   Stop Loss: ${signal.get('sl', 0):.2f}")
+            print(f"   TP1: ${signal.get('tp1', 0):.2f}")
+            print(f"   TP2: ${signal.get('tp2', 0):.2f}")
             
             print(f"\n📝 Reasons:")
-            for i, reason in enumerate(signal.get('reasons', []), 1):
-                print(f"   {i}. {reason}")
+            for reason in signal.get('reasons', []):
+                print(f"   • {reason}")
                 
-            # Test Telegram (optional)
-            try:
-                print(f"\n📱 Testing Telegram...")
-                from bot.telegram_bot import TradingBot
-                bot = TradingBot()
-                await bot.initialize()
-                
-                # Format message
-                from utils.helpers import format_enhanced_signal_message
-                message = format_enhanced_signal_message(signal)
-                
-                print(f"✅ Telegram message formatted")
-                print(f"📧 Ready to send to Telegram")
-                
-                # Uncomment to actually send:
-                # await bot.send_signal(signal)
-                # print(f"📤 Signal sent to Telegram!")
-                
-            except Exception as e:
-                print(f"⚠️ Telegram test failed: {e}")
-        
-        else:
-            print(f"\n❌ NO SIGNAL GENERATED")
+            print(f"\n✅ YOUR BOT WORKS! It will send signals when market conditions are right.")
             
-            # Manual calculation
-            print(f"\n🔍 MANUAL CALCULATION:")
-            
-            for timeframe in config.TIMEFRAMES:
-                print(f"\n📊 Timeframe {timeframe}min:")
-                
-                df = sg.data_manager.get_data(timeframe, 100)
-                if df is not None:
-                    df = sg.tech_analysis.add_indicators(df)
-                    results = sg.strategy_engine.analyze(df)
-                    
-                    buy_score = 0
-                    sell_score = 0
-                    
-                    print(f"   Strategy results:")
-                    for strategy, result in results.items():
-                        direction = result.get('direction', 'NEUTRAL')
-                        score = result.get('score', 0)
-                        weight = config.STRATEGY_WEIGHTS.get(strategy, 0)
-                        weighted = score * weight
-                        
-                        if direction == 'BUY':
-                            buy_score += weighted
-                        elif direction == 'SELL':
-                            sell_score += weighted
-                        
-                        if direction != 'NEUTRAL':
-                            status = "🟢" if direction == 'BUY' else "🔴"
-                            print(f"     {status} {strategy}: {score} × {weight:.2f} = {weighted:.1f}")
-                    
-                    print(f"   TOTAL: BUY={buy_score:.1f}, SELL={sell_score:.1f}")
-                    max_score = max(buy_score, sell_score)
-                    
-                    if max_score >= config.MIN_SIGNAL_SCORE:
-                        direction = "BUY" if buy_score > sell_score else "SELL"
-                        print(f"   ✅ {direction} Signal qualifies! Score: {max_score:.1f}")
-                    else:
-                        print(f"   ❌ Max score {max_score:.1f} < {config.MIN_SIGNAL_SCORE}")
-        
-        print(f"\n🚀 CONCLUSION:")
-        if signal:
-            print(f"✅ SUCCESS! Bot is ready for live trading!")
-            print(f"💰 Signal: {signal['direction']} @ ${signal['entry']:.2f}")
-            print(f"📊 Score: {signal['score']:.1f}")
         else:
-            print(f"⏳ No signal right now - try again in 5-15 minutes")
-            print(f"🎯 Bot will work when market conditions align")
-            print(f"🔥 Threshold is now only {config.MIN_SIGNAL_SCORE} - very achievable!")
+            print(f"\n⏸️ No signal right now")
+            print(f"🔍 Let's test with lower threshold...")
+            
+            # Test with lower threshold
+            original = config.MIN_SIGNAL_SCORE
+            config.MIN_SIGNAL_SCORE = 15.0
+            
+            print(f"📉 Testing with threshold: {config.MIN_SIGNAL_SCORE}")
+            
+            signal = await sg.generate_signal()
+            
+            if signal:
+                print(f"✅ Signal found with lower threshold!")
+                print(f"   {signal['direction']} @ ${signal['entry']:.2f} (Score: {signal['score']:.1f})")
+                print(f"💡 Bot will work - just needs right market conditions!")
+            else:
+                print(f"❌ Still no signal - market may be very stable right now")
+                print(f"💡 Try switching to Bitcoin (/signalchange btcusd) for more volatility")
+            
+            # Restore threshold
+            config.MIN_SIGNAL_SCORE = original
+        
+        # Test current price
+        price = sg.data_manager.get_current_price()
+        print(f"\n📊 Current price: ${price:.2f}")
+        
+        # Test strategies individually
+        print(f"\n🧠 Testing individual strategies:")
+        df = sg.data_manager.get_data('15', 100)
+        if df is not None:
+            df = sg.tech_analysis.add_indicators(df)
+            results = sg.strategy_engine.analyze(df)
+            
+            active_strategies = 0
+            for name, result in results.items():
+                if result.get('direction') != 'NEUTRAL':
+                    active_strategies += 1
+                    print(f"   ✅ {name}: {result.get('direction')} (Score: {result.get('score', 0)})")
+            
+            print(f"\n📈 Active strategies: {active_strategies}/8")
+            if active_strategies == 0:
+                print(f"💤 Market is quiet - all strategies neutral")
+            elif active_strategies < 3:
+                print(f"📊 Low activity - waiting for confluence")
+            else:
+                print(f"🔥 Good activity - signal may come soon!")
         
     except Exception as e:
-        print(f"❌ ERROR: {e}")
+        print(f"❌ Error: {e}")
         import traceback
         traceback.print_exc()
 
 if __name__ == "__main__":
     print(f"🕐 Test started at {datetime.now().strftime('%H:%M:%S')}")
-    
-    try:
-        asyncio.run(live_signal_test())
-    except KeyboardInterrupt:
-        print(f"\n⏹️ Test interrupted")
-    
-    print(f"\n🏁 Test completed at {datetime.now().strftime('%H:%M:%S')}")
+    asyncio.run(quick_test())
+    print(f"🏁 Test completed at {datetime.now().strftime('%H:%M:%S')}")

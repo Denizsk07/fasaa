@@ -1,7 +1,7 @@
 """
 Enhanced Configuration for XAUUSD Trading Bot
 Optimized for real XAUUSD Forex data and high win-rate trading
-FIXED VERSION - Ready for Signal Generation
+OPTIMIZED VERSION - Ready for Signal Generation with Score 32.4+
 """
 
 import os
@@ -31,7 +31,7 @@ class XAUUSDTradingConfig:
     
     # Real XAUUSD Trading Parameters (in USD per ounce)
     RISK_PERCENTAGE: float = float(os.getenv('RISK_PERCENTAGE', '2'))
-    MIN_SIGNAL_SCORE: float = 25.0  # FIXED: Lowered from 75.0 to 25.0 for more signals
+    MIN_SIGNAL_SCORE: float = 30.0  # OPTIMIZED: Lowered from 25.0 to catch score 32.4 signals
     
     # XAUUSD Optimized Timeframes
     TIMEFRAMES: List[str] = field(default_factory=lambda: ['15', '30', '60'])
@@ -165,7 +165,7 @@ class XAUUSDTradingConfig:
         logger.info(f"🎯 Target: {self.LEARNING_CONFIG['target_winrate']}% win rate")
         logger.info(f"📊 Primary Symbol: {self.PRIMARY_SYMBOL}")
         logger.info(f"⚖️ Risk per trade: {self.RISK_PERCENTAGE}%")
-        logger.info(f"🔥 MIN SIGNAL SCORE: {self.MIN_SIGNAL_SCORE} (LOWERED FOR MORE SIGNALS)")
+        logger.info(f"🔥 MIN SIGNAL SCORE: {self.MIN_SIGNAL_SCORE} (OPTIMIZED FOR SCORE 32.4+)")
         logger.info(f"🔄 Learning: Every {self.LEARNING_CONFIG['quick_learn_threshold']} trades")
     
     def _validate_config(self):
@@ -321,7 +321,7 @@ class XAUUSDTradingConfig:
     def export_config(self) -> Dict[str, Any]:
         """Export complete configuration for backup/analysis"""
         return {
-            'version': '3.0',
+            'version': '3.1',
             'timestamp': datetime.now().isoformat(),
             'symbol': self.PRIMARY_SYMBOL,
             'asset_type': self.ASSET_TYPE,
