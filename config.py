@@ -1,6 +1,7 @@
 """
 Enhanced Configuration for XAUUSD Trading Bot
 Optimized for real XAUUSD Forex data and high win-rate trading
+FIXED VERSION - Ready for Signal Generation
 """
 
 import os
@@ -30,7 +31,7 @@ class XAUUSDTradingConfig:
     
     # Real XAUUSD Trading Parameters (in USD per ounce)
     RISK_PERCENTAGE: float = float(os.getenv('RISK_PERCENTAGE', '2'))
-    MIN_SIGNAL_SCORE: float = float(os.getenv('MIN_SIGNAL_SCORE', '78'))  # Higher threshold for quality
+    MIN_SIGNAL_SCORE: float = 25.0  # FIXED: Lowered from 75.0 to 25.0 for more signals
     
     # XAUUSD Optimized Timeframes
     TIMEFRAMES: List[str] = field(default_factory=lambda: ['15', '30', '60'])
@@ -42,16 +43,16 @@ class XAUUSDTradingConfig:
     # Stop Loss for XAUUSD (in USD per ounce)
     STOP_LOSS: float = 8.0  # $8 stop loss is reasonable for XAUUSD
     
-    # Enhanced Strategy Weights for XAUUSD
+    # OPTIMIZED Strategy Weights for XAUUSD - Focused on working strategies
     STRATEGY_WEIGHTS: Dict[str, float] = field(default_factory=lambda: {
-        'smc': 0.25,              # Smart Money Concepts - sehr wichtig bei Gold
+        'smc': 0.30,              # INCREASED - Smart Money Concepts working well
         'support_resistance': 0.20, # S/R Levels - Gold respektiert diese stark
         'price_action': 0.15,     # Price Action Patterns
-        'bollinger': 0.12,        # Bollinger Bands
-        'fvg': 0.10,             # Fair Value Gaps
-        'patterns': 0.08,         # Chart Patterns
-        'volume': 0.05,          # Volume (weniger wichtig bei XAUUSD)
-        'candlesticks': 0.05     # Candlestick Patterns
+        'bollinger': 0.15,        # INCREASED - Bollinger Bands working well
+        'patterns': 0.10,         # INCREASED - Chart Patterns working
+        'candlesticks': 0.05,     # Candlestick Patterns working
+        'fvg': 0.03,             # DECREASED - Fair Value Gaps less reliable
+        'volume': 0.02           # DECREASED - Volume less important for XAUUSD
     })
     
     # XAUUSD Market Hours (Gold trades almost 24/5)
@@ -61,10 +62,10 @@ class XAUUSDTradingConfig:
         'timezone': 'UTC'
     })
     
-    # Data Quality Settings
+    # Data Quality Settings - Updated for current market
     DATA_VALIDATION: Dict[str, float] = field(default_factory=lambda: {
-        'min_price': 1600.0,      # Minimum realistic XAUUSD price
-        'max_price': 3000.0,      # Maximum realistic XAUUSD price
+        'min_price': 3000.0,      # Updated minimum realistic XAUUSD price
+        'max_price': 3500.0,      # Updated maximum realistic XAUUSD price
         'max_volatility': 0.05,   # 5% max volatility per period
         'min_bars': 20            # Minimum bars for analysis
     })
@@ -79,13 +80,13 @@ class XAUUSDTradingConfig:
     SYMBOL_NAME: str = 'XAUUSD'
     ASSET_CLASS: str = 'PRECIOUS_METALS'
     
-    # Enhanced Learning Parameters
+    # Enhanced Learning Parameters - More aggressive for faster learning
     LEARNING_CONFIG: Dict[str, Any] = field(default_factory=lambda: {
-        'quick_learn_threshold': 5,    # Learn after every 5 trades
-        'deep_learn_hours': 6,         # Deep learning every 6 hours
-        'target_winrate': 90.0,        # Target win rate
-        'min_trades_for_optimization': 10,  # Minimum trades before optimization
-        'weight_adjustment_factor': 0.15     # How aggressively to adjust weights
+        'quick_learn_threshold': 3,    # DECREASED - Learn after every 3 trades
+        'deep_learn_hours': 4,         # DECREASED - Deep learning every 4 hours  
+        'target_winrate': 80.0,        # REALISTIC target win rate
+        'min_trades_for_optimization': 5,  # DECREASED - Minimum trades before optimization
+        'weight_adjustment_factor': 0.20    # INCREASED - More aggressive weight adjustment
     })
     
     # Risk Management for XAUUSD
@@ -164,6 +165,7 @@ class XAUUSDTradingConfig:
         logger.info(f"🎯 Target: {self.LEARNING_CONFIG['target_winrate']}% win rate")
         logger.info(f"📊 Primary Symbol: {self.PRIMARY_SYMBOL}")
         logger.info(f"⚖️ Risk per trade: {self.RISK_PERCENTAGE}%")
+        logger.info(f"🔥 MIN SIGNAL SCORE: {self.MIN_SIGNAL_SCORE} (LOWERED FOR MORE SIGNALS)")
         logger.info(f"🔄 Learning: Every {self.LEARNING_CONFIG['quick_learn_threshold']} trades")
     
     def _validate_config(self):
@@ -172,8 +174,8 @@ class XAUUSDTradingConfig:
         if self.RISK_PERCENTAGE > 5.0:
             raise ValueError("Risk percentage too high! Maximum 5% recommended.")
         
-        if self.MIN_SIGNAL_SCORE < 50 or self.MIN_SIGNAL_SCORE > 100:
-            raise ValueError("Signal score must be between 50-100")
+        if self.MIN_SIGNAL_SCORE < 10 or self.MIN_SIGNAL_SCORE > 100:
+            raise ValueError("Signal score must be between 10-100")
         
         # Validate strategy weights sum to 1.0
         total_weight = sum(self.STRATEGY_WEIGHTS.values())
@@ -182,6 +184,11 @@ class XAUUSDTradingConfig:
             self.STRATEGY_WEIGHTS = {
                 k: v/total_weight for k, v in self.STRATEGY_WEIGHTS.items()
             }
+            
+            # Log the normalization
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"🔧 Strategy weights auto-normalized to sum=1.0")
         
         # Validate price ranges
         if (self.DATA_VALIDATION['min_price'] >= self.DATA_VALIDATION['max_price']):
@@ -314,7 +321,7 @@ class XAUUSDTradingConfig:
     def export_config(self) -> Dict[str, Any]:
         """Export complete configuration for backup/analysis"""
         return {
-            'version': '2.0',
+            'version': '3.0',
             'timestamp': datetime.now().isoformat(),
             'symbol': self.PRIMARY_SYMBOL,
             'asset_type': self.ASSET_TYPE,
@@ -324,7 +331,8 @@ class XAUUSDTradingConfig:
             'technical_config': self.TECHNICAL_CONFIG,
             'data_validation': self.DATA_VALIDATION,
             'timeframes': self.TIMEFRAMES,
-            'tp_levels': self.TP_LEVELS
+            'tp_levels': self.TP_LEVELS,
+            'min_signal_score': self.MIN_SIGNAL_SCORE
         }
 
 # Create global config instance
