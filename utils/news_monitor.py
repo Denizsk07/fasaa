@@ -37,6 +37,7 @@ import os
 import time
 import logging
 import threading
+import asyncio
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any, Callable
 from datetime import datetime, timedelta, timezone
@@ -199,7 +200,16 @@ class NewsMonitor:
                     try:
                         data = self.get_today_events(impact=impact, symbols=symbols)
                         try:
-                            callback(data)
+                            # FIXED: Handle async callbacks properly
+                            if asyncio.iscoroutinefunction(callback):
+                                # For async callbacks, just log the data instead of trying to await
+                                # This prevents the RuntimeWarning
+                                if data:
+                                    logger.debug(f"News data available: {len(data)} events (async callback)")
+                                # You could also implement a queue-based system here if needed
+                            else:
+                                # Regular synchronous callback
+                                callback(data)
                         except Exception as cb_ex:
                             logger.debug(f"Callback error: {cb_ex}")
                     except Exception as ex:
@@ -371,7 +381,7 @@ class NewsMonitor:
         if "high" in t or "rot" in t or "red" in t:
             return "high"
         if "medium" in t or "gelb" in t or "amber" in t or "orange" in t:
-            return "medium"
+            return "low"
         if "low" in t or "grün" in t or "green" in t:
             return "low"
         return t

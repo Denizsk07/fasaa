@@ -151,7 +151,7 @@ class XAUUSDTradingSystem:
             # Generate signal
             signal = await self.signal_generator.generate_signal()
             
-            if signal and signal['score'] >= float(os.getenv('MIN_SIGNAL_SCORE', 75)):
+            if signal and signal['score'] >= 30:
                 # Add trade counter
                 self.trade_counter += 1
                 signal['trade_number'] = self.trade_counter

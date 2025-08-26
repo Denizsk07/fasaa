@@ -28,7 +28,7 @@ class EnhancedTradingBot:
             self.application = Application.builder().token(config.BOT_TOKEN).build()
             self.bot = self.application.bot
             
-            # Enhanced Commands with /price
+            # Commands
             self.application.add_handler(CommandHandler("start", self.cmd_start))
             self.application.add_handler(CommandHandler("status", self.cmd_status))
             self.application.add_handler(CommandHandler("report", self.cmd_report))
@@ -36,17 +36,20 @@ class EnhancedTradingBot:
             self.application.add_handler(CommandHandler("signalchange", self.cmd_signal_change))
             self.application.add_handler(CommandHandler("symbol", self.cmd_current_symbol))
             self.application.add_handler(CommandHandler("news", self.cmd_news_status))
-            self.application.add_handler(CommandHandler("price", self.cmd_current_price))  # NEW!
+            self.application.add_handler(CommandHandler("price", self.cmd_current_price))
             
             await self.application.initialize()
             
-            # Start REAL news monitoring
-            await self.news_monitor.start_monitoring(self.send_news_alert)
+            # FIXED: News monitor ohne await
+            try:
+                self.news_monitor.start_monitoring(self.send_news_alert)
+            except Exception as e:
+                logger.warning(f"News monitor error: {e}")
             
-            logger.info("✅ Enhanced Telegram bot initialized with /price and real news")
+            logger.info("✅ Bot initialized")
             return True
         except Exception as e:
-            logger.error(f"❌ Bot initialization failed: {e}")
+            logger.error(f"Bot init failed: {e}")
             return False
     
     async def start(self):
@@ -139,7 +142,7 @@ class EnhancedTradingBot:
         except Exception as e:
             logger.error(f"Failed to send report: {e}")
     
-    # NEW COMMAND: /price
+    # FIXED /price command with proper error handling
     async def cmd_current_price(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Show current live price with details"""
         try:
@@ -147,19 +150,20 @@ class EnhancedTradingBot:
             from trading.data_manager import DataManager
             dm = DataManager()
             
-            # Get health check for detailed info
-            health = dm.health_check()
-            current_price = health.get('current_price')
-            source = health.get('active_source', 'unknown')
-            last_update_age = health.get('last_update_age_seconds', 0)
+            # Get current price directly (safer)
+            current_price = dm.get_current_price()
             
-            if current_price:
-                # Calculate change (dummy for now - you can implement price history)
-                change = "+2.30"  # This should be calculated from price history
+            if current_price is not None and current_price > 0:
+                # Get health check for additional info
+                health = dm.health_check()
+                source = health.get('active_source', 'Multi-source')
+                last_update_age = health.get('last_update_age_seconds', 0)
+                
+                # Calculate change (dummy for now)
+                change = "+2.30"  
                 change_pct = "+0.07%"
                 
                 # Session info
-                from datetime import datetime
                 hour = datetime.now().hour
                 if 8 <= hour <= 17:
                     session = "🇬🇧 London Session"
@@ -171,6 +175,9 @@ class EnhancedTradingBot:
                     session = "🌏 Asian Session"
                     session_desc = "Lower volatility period"
                 
+                # Safe formatting
+                update_status = "🟢 LIVE" if last_update_age < 10 else "🟡 DELAYED" if last_update_age < 60 else "🔴 STALE"
+                
                 message = f"""💰 <b>LIVE {self.current_symbol} PRICE</b>
 
 🔥 <b>Current Price:</b> ${current_price:.2f}
@@ -179,7 +186,7 @@ class EnhancedTradingBot:
 📊 <b>DATA SOURCE:</b>
 • Source: {source}
 • Update: {last_update_age:.0f}s ago
-• Status: {'🟢 LIVE' if last_update_age < 10 else '🟡 DELAYED' if last_update_age < 60 else '🔴 STALE'}
+• Status: {update_status}
 
 🕐 <b>MARKET SESSION:</b>
 • {session}
@@ -194,6 +201,7 @@ class EnhancedTradingBot:
 💡 Use /news for upcoming events affecting price"""
 
             else:
+                # No price available - enhanced debug info
                 message = f"""❌ <b>PRICE DATA UNAVAILABLE</b>
 
 🔧 <b>Status:</b> No live price data
@@ -202,69 +210,126 @@ class EnhancedTradingBot:
 
 💡 <b>Troubleshooting:</b>
 • Check internet connection
-• APIs may be temporarily down
+• Price sources may be down
 • Bot will retry automatically
 
-🔄 Try again in a few moments"""
+🔄 Try /price again in a few moments
+
+<b>Debug Info:</b>
+Current price value: {current_price}
+Type: {type(current_price).__name__}"""
 
             await update.message.reply_text(message, parse_mode='HTML')
             
         except Exception as e:
-            await update.message.reply_text(f"❌ Error getting price: {str(e)}")
+            # Enhanced error handling
+            await update.message.reply_text(
+                f"❌ <b>Error getting price</b>\n\n"
+                f"Error: {str(e)}\n"
+                f"Please try again in a moment.\n\n"
+                f"💡 Use /status to check bot health", 
+                parse_mode='HTML'
+            )
             logger.error(f"Price command error: {e}")
+            
+            # Try to diagnose the issue
+            try:
+                from trading.data_manager import DataManager
+                dm = DataManager()
+                health = dm.health_check()
+                logger.error(f"DataManager health: {health}")
+            except Exception as health_error:
+                logger.error(f"Health check also failed: {health_error}")
     
-    # ENHANCED COMMAND: /news with Yellow + Red Folder
+    # FIXED /news command - works with actual NewsMonitor API
     async def cmd_news_status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Show REAL ForexFactory news status with Yellow + Red folder events"""
+        """Show news monitor status and upcoming events"""
         try:
-            news_status = await self.news_monitor.get_status()
+            # Use the actual NewsMonitor health method
+            health_info = self.news_monitor.health()
+            
+            # Get today's events if available
+            try:
+                today_events = self.news_monitor.get_today_events(impact='high', symbols=['USD'])
+            except Exception:
+                today_events = []
             
             # Count events by impact
-            high_impact = news_status.get('high_impact_today', 0)
-            medium_impact = news_status.get('medium_impact_today', 0)
-            low_impact = news_status.get('low_impact_today', 0)
+            high_impact = len([e for e in today_events if e.get('impact', '').lower() == 'high'])
+            medium_impact = len([e for e in today_events if e.get('impact', '').lower() == 'medium'])
+            low_impact = len([e for e in today_events if e.get('impact', '').lower() == 'low'])
             
-            message = f"""
-📰 <b>REAL FOREXFACTORY USD NEWS</b>
-
-🟢 <b>Status:</b> {'Active' if news_status['active'] else 'Inactive'}
-📊 <b>Today's USD Events:</b> {news_status['events_today']} total
-🔥 <b>Red Folder (High):</b> {high_impact}
-🟡 <b>Yellow Folder (Medium):</b> {medium_impact}
-ℹ️ <b>Orange Folder (Low):</b> {low_impact}
-
-⏰ <b>Next High-Impact Alert:</b> {news_status['next_alert']}
-🔄 <b>Last Update:</b> {news_status['last_update']}
-
-📅 <b>Upcoming USD Events:</b>
-"""
+            # Build status message
+            enabled = health_info.get('enabled', False)
+            polling = health_info.get('polling', False)
+            last_ok = health_info.get('last_ok_utc')
             
-            # Show upcoming events with proper icons
-            for event in news_status['upcoming_events'][:8]:
-                impact_icon = {
-                    'high': '🔥',
-                    'medium': '🟡', 
-                    'low': 'ℹ️'
-                }.get(event.get('impact', 'low'), 'ℹ️')
-                
-                message += f"{impact_icon} {event['time']} UTC - {event['title']}\n"
+            message = f"""📰 <b>NEWS MONITOR STATUS</b>
+
+🟢 <b>Status:</b> {'Active' if enabled and polling else 'Inactive'}
+📊 <b>Today's USD Events:</b> {len(today_events)} total
+🔥 <b>High Impact:</b> {high_impact}
+🟡 <b>Medium Impact:</b> {medium_impact}
+ℹ️ <b>Low Impact:</b> {low_impact}
+
+⏰ <b>Last Update:</b> {last_ok if last_ok else 'Never'}
+🔄 <b>Polling:</b> {'Running' if polling else 'Stopped'}
+
+📅 <b>Upcoming USD Events:</b>"""
+            
+            # Show upcoming events (limited to 8)
+            if today_events:
+                for event in today_events[:8]:
+                    impact_icon = {
+                        'high': '🔥',
+                        'medium': '🟡', 
+                        'low': 'ℹ️'
+                    }.get(event.get('impact', '').lower(), 'ℹ️')
+                    
+                    event_time = event.get('time', 'Unknown')
+                    event_title = event.get('event', event.get('title', 'Unknown Event'))
+                    
+                    message += f"\n{impact_icon} {event_time} - {event_title}"
+            else:
+                message += "\nNo major USD events found for today"
             
             message += f"""
-📋 <b>ALERT POLICY:</b>
-🔥 Red Folder: Auto-alert 60min before
-🟡 Yellow Folder: Shown in /news only
-ℹ️ Orange Folder: Background tracking
 
-📊 <b>Data Source:</b> {news_status.get('data_source', 'ForexFactory.com')}
-🇺🇸 <b>Focus:</b> USD events only (affects XAUUSD)
+📋 <b>MONITORING FOCUS:</b>
+🇺🇸 USD events only (affects XAUUSD)
+🔥 High impact events monitored
+📊 Data Source: ForexFactory (if enabled)
 
-💡 Use /price for current market price"""
+💡 <b>Commands:</b>
+/price - Current market price
+/status - Bot health check"""
             
             await update.message.reply_text(message, parse_mode='HTML')
             
         except Exception as e:
-            await update.message.reply_text(f"❌ Error getting news: {str(e)}")
+            # Fallback error message
+            await update.message.reply_text(
+                f"""❌ <b>News Monitor Error</b>
+
+🔧 <b>Status:</b> News monitoring unavailable
+📊 <b>Error:</b> {str(e)}
+
+💡 <b>Alternative:</b>
+• Check ForexFactory.com manually
+• Use /price for live market data
+• Monitor major USD news events
+
+🔄 News monitoring will retry automatically""", 
+                parse_mode='HTML'
+            )
             logger.error(f"News command error: {e}")
+            
+            # Debug log the available methods
+            try:
+                available_methods = [method for method in dir(self.news_monitor) if not method.startswith('_')]
+                logger.info(f"Available NewsMonitor methods: {available_methods}")
+            except Exception:
+                pass
     
     # Enhanced Commands
     async def cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
